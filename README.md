@@ -4,6 +4,8 @@ The following files were submitted for the first project of Duke University's In
 ### Submission by Connor Lenio. Email: cojamalo@gmail.com
 Completion Date: Mar 29, 2017
 
+### Please visit https://cojamalo.github.io/DATA-DUKE-Intro-Stats-EDA-1/Duke01_project.html to properly view the project html file.
+
 ### Introduction to the Data
 From "Data Analysis Project Information":
 
