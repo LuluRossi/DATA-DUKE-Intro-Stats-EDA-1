@@ -1,0 +1,401 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document:
+    keep_md: yes
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+### Submission by Connor Lenio. Email: cojamalo@gmail.com
+Completion Date: Mar 29, 2017
+
+### Setup
+
+#### Load packages
+
+```{r load-packages, message = FALSE}
+library(knitr)
+library(pander)
+library(ggplot2)
+library(colorspace)
+library(tidyr)
+library(dplyr)
+```
+<br>
+
+#### Load data and set global knitr options
+
+```{r load-data}
+opts_chunk$set(echo = TRUE,fig.align='center')
+load("brfss2013.RData")
+```
+
+
+
+* * *
+### Part 1: Data
+
+#### Describe how the observations in the sample are collected, and the implications of this data collection method on the scope of inference (generalizability / causality). Note that you will need to look into documentation on the BRFSS to answer this question. See http://www.cdc.gov/brfss/ as well as the "More information on the data" section below.
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The Behavioral Risk Factor Surveillance System (BRFSS) is an observational study targeting the non-institutionalized adult population, aged 18 years or older, who reside in the United States. Specifically, the study is a retrospective observational study as asks respondents about various aspects of their health in the previous months to their contact.   The study's observations are collected by contacting respondents by phone calls. Prospective respondents are eliminated from consideration if they are not 18 years or older, at a residential or college location, or if the phone they are using is not classified as a landline. Once these conditions are met, a random adult is selected from the contacted household to interview.
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The Centers for Disease Control and Prevention manages the study, but the standardized interviews are conducted by agents in each state or territory involved in the study. The study does not involve completely random selection of respondents nor the random assignment of respondents to the factors under consideration. Thus, the study is not an experiment and, thus, involves sample bias and limitations in what conclusions can be drawn from the data collected. Moreover, no causality can be determined from this observational study, only associational relationships. Any identified associations will also be complicated by lurking variables as it will be difficult to rule out other confounding factors that may lead to such associations. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Numerous issues with the sampling method exist and they involve differences between the sampled population and the stated target population of the study. For instance, the use of telephones as the method of contact limits the sampling frame to only those who have a landline telephone and reside in residential or college housing. Moreover, potential respondents may not answer their phones when called or otherwise may not be available, introducing nonresponse bias. Demographic differences may occur as well as more instances of certain types of people may answer the phone or have a phone at all. A cursory look at the 2013 data shows a more white, female, and wealthy sample of respondents than exists in the target population, for example. Also, efforts to normalize the number of respondents according to their state are not present and the proportion of respondents from each state is different then they would be in the target population. These examples are just some of the ways the sample population may not fully represent the target population. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Other issues of the study revolve around its interview format. One may doubt the data due to issues such as the intelligibility of the question asked (did the respondent understand the question?) or whether memory issues are biasing results (respondents may not accurately remember their own health status). In addition, respondents may misreport their true health status due to the sensitive nature of health questions. For example, a respondent may underreport the number of times they binge drank in the past month because of concerns of sounding like they drink too much. Considering these limitations and the potential for sampling bias, one must be careful in making too strong of claims from the data. The data is still useful for learning about the health of US adults, but the scope of inference is narrow considering these and other limitations of this observational study's design.
+
+
+* * *
+
+### Part 2: Research Questions
+#### Come up with at least three research questions that you want to answer using these data. You should phrase your research questions in a way that matches up with the scope of inference your dataset allows for. Make sure that at least two of these questions involve at least three variables. You are welcomed to create new variables based on existing ones. With each question include a brief discussion (1-2 sentences) as to why this question is of interest to you and/or your audience.
+
+<br>
+
+**Research question 1:**
+
+For <u>those US adults who report some level of joint pain</u> and <u>limitations due to joint pain,</u> is increased <u>physical activity</u> associated with a reduction in the severity of reported joint pain?
+
+<i>Variables:</i> lmtjoin3 (limitations due to joint pain), X_pacat1 (physical activity), and joinpain (joint pain severity score in last 30 days)
+
+<i>Relevance:</i> Personal trainers, health providers, arthritis sufferers, etc. are interested in the benefits of exercise and any possible relationships with exercise and improving joint health or reducing pain.
+
+<br>
+
+**Research question 2:**
+
+Are a having a lower reported <u>income</u> and <u>whether one has health insurance</u> associated with a <u>difficulty in affording to see a doctor</u>?
+
+<i>Variables:</i> income2 (Income Level), hlthpln1 (Have any Health Care Coverage), and medcost (Could Not See Dr. Because Of Cost) 
+
+<i>Relevance:</i> Healthcare is a major public policy issue in the United States and a relevant question to the debate is who needs help with medical expenses and why, and whether having health insurance makes a difference in handling medical costs. 
+
+<br>
+
+**Research question 3:**
+
+Are a US adult's <u>smoking habits</u> and their <u>age group</u> associated with the <u>number of days they reported where their physical health was not good</u>?
+
+<i>Variables:</i> X_smoker3 (Four-level smoker status),X_age_g (Imputed Age In Six Groups), and physhlth (Number Of Days Physical Health Not Good)
+
+<i>Relevance:</i> Smoking is a major public health issue, yet many people still choose to smoke, even young people who are familiar with its risks. Is smoking related to increased risk for physical illness and does the smoker's age relate to the magnitude of such relationships?  
+
+
+* * *
+
+### Part 3: Exploratory data analysis
+#### Perform exploratory data analysis (EDA) that addresses each of the three research questions you outlined above. Your EDA should contain numerical summaries and visualizations. Each R output and plot should be accompanied by a brief interpretation.
+
+<br>
+
+**Required Data Processing Function**
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The following function is used in the exploratory data analysis to reduce the brfss2013 data to just those observations that had a value for each of the variables under consideration - `allprep`:
+```{r Data Processing Function}
+allprep <- function(...) {
+    study <- brfss2013 %>%
+        select(...) 
+    
+    return(study[complete.cases(study),])
+}
+```
+
+* * *
+
+**Research Question 1:**
+
+For <u>those US adults who report some level of joint pain</u> and <u>limitations due to joint pain,</u> is increased <u>physical activity</u> associated with a reduction in the severity of reported joint pain?
+
+<br>
+
+**Exploratory Data Analysis for Question 1**
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Complete cases were found for the desired variables using allprep, then the data was filtered for those respondents that have limitations due to joint pain and those who reported some kind of joint pain in the last 30 days - `dat1`:
+
+```{r Question 1 Data Filtering, results="asis"}
+dat1 <- allprep(lmtjoin3, X_pacat1, joinpain) %>%
+    filter(lmtjoin3 == "Yes" & joinpain != 0) 
+    
+pandoc.table(head(dat1), caption = "Fig. 1-0 - Observations 1 to 6 of 65230 for output data frame `dat1`...", justify = "center")
+```
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To determine if there is an association between physical activity and joint pain scores, the summary statistics for measures of center and measures of the spread were determined. The skew of the data was also determined by comparing the mean and median - `sum1`:
+```{r Summary 1-1, results="asis"}
+sum1 <- dat1 %>% 
+    group_by(X_pacat1) %>% 
+    summarize(Q1 = quantile(joinpain, 0.25), MEAN = mean(joinpain), MEDIAN = median(joinpain),Q3 = quantile(joinpain, 0.75), IQR = IQR(joinpain), STDEV = sd(joinpain)) %>%
+    mutate(SKEW = ifelse(MEAN > MEDIAN, "RIGHT", "LEFT"))
+                                                                                                                                                    
+pandoc.table(sum1, caption = "Fig. 1-1 - Summary Statistics for Joint Pain Grouped by Physical Activity Level", justify = "center")
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;These summary statistics indicate that all four categories have a similar degree of spread and variation. However, the mean, median, and 1st and 3rd quartiles show differences in the distribution of the data. For instance, the two active categories: Highly active and Active are slightly right skewed, indicating that more of their joint pain values are less than the mean of 5.5 and 5.6, respectively. The Insufficiently active category is nearly symmetric, and the Inactive category is left skewed, indicating that more of its joint pain values are greater than the mean of 6.7. Thus, there is a positive increase in the distribution of joint pain levels as activity level decreases, and there is a clear increase in joint pain level between the Inactive category and all the other categories. 
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;These differences in distribution can be visualized by a density plot:
+
+```{r Plot 1-1}
+ggplot(dat1, aes(x = joinpain, color = X_pacat1)) + 
+    geom_density(adjust = 2) +
+    scale_color_manual(values = rev(heat_hcl(6, h = c(20,-80), l = c(75,40), c =c(40,80), power = 1))) +
+    scale_x_continuous(breaks = c(1:10)) +
+    labs(title = "Distribution of Reported Joint Pain Levels by Physical Activity Level", y = "Density", x = "Joint Pain Level", col = "Physical Activity Level") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The density plot reflects the summary statistics as the Inactive distribution is denser at higher joint pain scores compared to the other groups. The other groups are more similar in density, but Highly Active has the greatest density at lower joint pain levels compared to Active and Insufficiently Active, and the Active category is denser at lower pain scores than Insufficiently active category. 
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;These differences are clarified by turning the density graph above into a proportional density plot: 
+
+```{r Plot 1-2}
+ggplot(dat1, aes(x = joinpain, fill = X_pacat1)) + 
+    geom_density(position = "fill", adjust =2) +
+    scale_fill_manual(values = rev(heat_hcl(6, h = c(20,-80), l = c(75,40), c =c(40,80), power = 1))) +
+    scale_x_continuous(breaks = c(1:10)) +
+    scale_y_continuous(labels = c("0%", "25%", "50%", "75%", "100%")) +
+    labs(title = "Proportional Distribution of Reported Joint Pain Levels \n by Physical Activity Level", y = "Proportional Density (%)", x = "Joint Pain Level", fill = "Physical Activity Level") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This plot supports the interpretation that the proportion of observations reporting lower levels of joint pain are greater for those who are more active. And, the less active a respondent is, the greater proportion of observations that report higher joint pain levels.
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;There is another way to view the association between physical activity levels and reported joint pain. A new summary table is produced grouping by both activity and joint pain and counting the number of observations for each combination of categories - `sum2`:
+
+```{r Summary 1-2, results="asis"}
+sum2 <- dat1 %>%
+    group_by(X_pacat1, joinpain) %>%
+    summarize(n = n())
+pandoc.table(head(sum2), caption = "Fig. 1-2 - Observations 1 to 6 of 40 for output data frame `sum2`...", justify = "center")
+```
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This table is used for a barplot comparing the proportion of each physical activity category by joint pain level:
+```{r Plot 1-3, fig.width=8, fig.height = 6}
+cc <- scales::div_gradient_pal("red","lavender", "blue", "Lab")(seq(0,1,length.out=10))
+ggplot(sum2, aes(x = factor(X_pacat1, levels =  c("Inactive", "Insufficiently active", "Active", "Highly active")), y = n, fill = factor(joinpain, levels = c(10:1)))) + geom_bar(stat="identity", position = "fill") +
+    scale_fill_manual(values = cc, labels=c("10 - Worst Pain", 9:2, "1 - Least Pain")) +
+    scale_y_continuous(labels = c("0%", "25%", "50%", "75%", "100%")) +
+    labs(title = "Proportion of Arthritis Sufferers' Level of Reported Joint Pain in Last 30 Days \n by Physical Activity Level", y = "% Respondents in Each Joint Pain Level", x = "Respondent's Physical Activity Level", fill = "Joint Pain Level") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Again, the relationship between greater physical activity and less joint pain is indicated as a higher proportion of those who report lower joint pain scores are highly active.
+
+<br>
+
+**Summary**
+
+<i>Initial Question:</i> For <u>those US adults who report some level of joint pain</u> and <u>limitations due to joint pain,</u> is increased <u>physical activity</u> associated with a reduction in the severity of reported joint pain?
+
+<i>Narrative from the Exploratory Analysis:</i> Yes, Increased physical activity is associated with a reduction in the severity of reported joint pain for those US adults who report some level of joint pain and limitations due to joint pain.
+
+* * *
+
+**Research Question 2:**
+
+Are a having a lower reported <u>income</u> and <u>whether one has health insurance</u> associated with a <u>difficulty in affording to see a doctor</u>?
+
+<br>
+
+**Exploratory Data Analysis for Question 2**
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Complete cases were selected for the desired variables using allprep. Then, the medcost factor was revalued using plyr to change the valence of the question so that it is easier to understand while keeping the same meaning. Now, medcost represents whether a respondent could afford to see the doctor rather than if the respondent could not see the doctor due to cost - `dat2`:
+
+```{r Question 2 Data Filtering, results="asis"}
+dat2 <- allprep(hlthpln1, medcost, income2)
+dat2$medcost <- plyr::revalue(dat2$medcost, c("Yes" = "No", "No" = "Yes"))
+pandoc.table(head(dat2), caption = "Fig. 2-0 - Observations 1 to 6 of 418642 for output data frame `dat2`...", justify = "center")
+```
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Starting with the two categorical variables, income2 and medcost, a summary table was made to summarize the number of respondents in each category. The proportion of each income group that said no to whether they could afford to see the doctor was also calculated - `sum1`:
+```{r Summary 2-1, results="asis"}
+sum1 <- dat2 %>% 
+    group_by(income2, medcost) %>% 
+    summarize(Sum = n()) %>% 
+    spread(medcost, Sum) %>% 
+    mutate(Sum = Yes+No, `% No` = round(No/Sum*100, digits =1))
+colnames(sum1)[1] <- "Income Level"
+pandoc.table(sum1, caption = "Fig. 2-1 - Summary Statistics for If Respondent Could Afford to See Dr. Because Of Cost Grouped by Income Level", justify = "center")
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This summary table illustrates an association in the data between income level and whether one could afford to see the doctor. Since the proportion of each income level that could not afford to see the doctor decreases as income level increases, lower income is associated with a reduction in ability to afford to see a doctor.
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;However, this table does not address whether health insurance also is associated with affording to see a doctor. This part of the question is explored by splitting up the data by insurance status - `sum_ins` and `sum_no_ins`:
+
+```{r Summary 2-2a, results="asis"}
+sum_ins <- dat2 %>% 
+    filter(hlthpln1 == "Yes") %>%
+    group_by(income2, medcost) %>% 
+    summarize(Sum = n()) %>% 
+    spread(medcost, Sum) %>% 
+    mutate(Sum = Yes+No, `% No` = round(No/Sum*100, digits =1))
+colnames(sum_ins)[1] <- "Income Level"
+
+pandoc.table(sum_ins, caption = "Fig. 2-2a - Have Health Coverage Only - Summary Statistics for If Respondent Could Afford to See Dr. Because Of Cost Grouped by Income Level", justify = "center")
+```
+
+```{r Summary 2-2b, results="asis"}
+sum_no_ins <- dat2 %>% 
+    filter(hlthpln1 == "No") %>%
+    group_by(income2, medcost) %>% 
+    summarize(Sum = n()) %>% 
+    spread(medcost, Sum) %>% 
+    mutate(Sum = Yes+No, `% No` = round(No/Sum*100, digits =1))
+colnames(sum_no_ins)[1] <- "Income Level"
+
+pandoc.table(sum_no_ins, caption = "Fig. 2-2b - Do Not Have Health Coverage Only - Summary Statistics for If Respondent Could Afford to See Dr. Because Of Cost Grouped by Income Level", justify = "center")
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Considering these two tables, Figures 2-2a and 2-2b, there is a substantial association between having health care coverage and whether the US adult can afford to see the doctor by income level. For instance, for the poorest income group, 18.6% of respondents with health coverage claimed they could not afford to see the doctor whereas 58.0% of the poorest respondents without health coverage claimed they could not afford to see the doctor. This wide gap in affordability based on whether one has health coverage holds for all income groups. For example, 3.1% of the richest respondents with health coverage claimed they could not afford to see the doctor whereas 21.7%% of the richest respondents without health insurance claimed they could not afford to see the doctor.
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;All of the relationships identified so far using the summary tables can be visualized in one facetted proportional barplot:
+```{r Plot 2-1, fig.width=8, fig.height = 6}
+colnames(dat2)[1] <- "Have Any Health Care Coverage?"
+ggplot(dat2, aes(x= income2, y = 1, fill = medcost)) + 
+    geom_bar(stat="identity", position = "fill") + 
+    facet_grid(`Have Any Health Care Coverage?`~., labeller = label_both) + 
+    scale_fill_manual(values = rainbow_hcl(2)) +
+    scale_y_continuous(labels = c("0%", "25%", "50%", "75%", "100%")) +
+    labs(title = "Proportion of Respondents Who Could Afford to See Doctor by \n Income Category and Whether They Have Any Health Care Coverage", fill = "Could Afford Dr.?",x = "Respondent's Income Category", y = "% Respondents who Could Afford to See Doctor") +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1), plot.title = element_text(hjust = 0.5))
+```
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;By plotting the proportion that could afford to see the doctor and facceting by whether the respondent has health coverage, the assocaition between income and whether the respondent could afford to see the doctor is illustrated. Lower income respondents proportionally struggle more to afford to see a doctor compared to higher income respondents. In addition, the association between having health care coverage and whether one could afford to see the doctor is also shown. Having health insurance is associated with a higher proportion of respondents who could afford to see the doctor for every income group.
+
+<br>
+
+**Summary**
+
+<i>Initial Question:</i> Are a having a lower reported <u>income</u> and <u>whether one has health insurance</u> associated with a <u>difficulty in affording to see a doctor</u>?
+
+<i>Narrative from the Exploratory Analysis:</i> Yes, having a lower income is associated with an inability to afford to see the doctor. Having health insurance is associated with being better able to afford to see the doctor, so, for instance, being poor and not having health insurance is associated with a much greater difficulty in affording health care.
+
+* * *
+
+**Research Question 3:**
+
+Are a US adult's <u>smoking habits</u> and their <u>age group</u> associated with the <u>number of days they reported where their physical health was not good</u>?
+
+<br>
+
+**Exploratory Data Analysis for Question 3**
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The complete cases were found for the desired variables using allprep, then the smoker variable was revalued using plyr to remove unnecessary words and shorten the factor level name length- `dat3`:
+
+```{r Question 3 Data Filtering, results="asis"}
+dat3 <- allprep(X_smoker3,X_age_g, physhlth) 
+dat3$X_smoker3 <- plyr::revalue(dat3$X_smoker3, c("Current smoker - now smokes every day" = "Smokes every day", "Current smoker - now smokes some days" = "Smokes some days"))
+    
+pandoc.table(head(dat3), caption = "Fig. 3-0 - Observations 1 to 6 of 466130 for output data frame `dat3`...", justify = "center")
+```
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To determine if there is an association between smoking habits and the number of days where physical health was not good, the summary statistics for measures of center and measures of the spread were determined. The skew of the data was also determined by comparing the mean and median - `sum1`:
+```{r Summary 3-1, results="asis"}
+sum1 <- dat3 %>% 
+    group_by(X_age_g, X_smoker3) %>% 
+    summarize(Q1 = quantile(physhlth, 0.25), MEAN = mean(physhlth), MEDIAN = median(physhlth),Q3 = quantile(physhlth, 0.75), IQR = IQR(physhlth), STDEV = sd(physhlth)) %>%
+    mutate(SKEW = ifelse(MEAN > MEDIAN, "RIGHT", "LEFT"))
+                                                                                                                                                    
+pandoc.table(sum1, caption = "Fig. 3-1 - Summary Statistics for Joint Pain Grouped by Physical Activity Level", justify = "center")
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;These summary statistics indicate that at least 50% of the respondents of almost all of the smoking habit and age group combinations report zero days with physical health that was not good. The distribution for each category is heavily right-skewed, especially given that the possible maximum value for physhlth is 30. The mean and Q3 give a sense as to some differences between each category. The mean number of days with poor physical health for the two current smoking categories are generally higher than the mean days of poor physical health of the former smokers and the never smoked category. Moreover, the mean number of days with poor physical health for each age group increases as age increases. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;These measures suggest some association between whether a person smokes and how many days of poor physical health they have during the month. Current smokers tend to have higher number of poor physical health days. In addition, the measures indicate some association between a respondent's age and how many days of poor physical health they may have during month. Older age groups tend to have a higher number of poor physical health days.  
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;However, so many respondents reported zero days, there may be some hidden information or clearer associations if respondents who reported zero are excluded.  One can check with another table - `sum2`:
+
+```{r Summary 3-2, results="asis"}
+sum2 <- dat3 %>% 
+    group_by(physhlth) %>% 
+    summarize(n = n())
+total <- sum(sum2$n)
+sum2 <- sum2 %>% mutate(`% of total` = round(n/total*100,digits=1))
+                                                                                                                                                    
+pandoc.table(sum2, caption = "Fig. 3-2 - Summary Statistics for Joint Pain Grouped by Physical Activity Level", justify = "center")
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sure enough, 63.2% of all respondents reported zero days of poor health. The data is heavily skewed with the inclusion of zero values as most people do not report being phyiscally ill. 
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;One can consider the summary statistics of the data without the zero value to see if any other associations emerge - `sum3`: 
+
+```{r Summary 3-3, results="asis"}
+sum3 <- dat3 %>% 
+    filter(physhlth != 0) %>%
+    group_by(X_age_g, X_smoker3) %>% 
+    summarize(Q1 = quantile(physhlth, 0.25), MEAN = mean(physhlth), MEDIAN = median(physhlth),Q3 = quantile(physhlth, 0.75), IQR = IQR(physhlth), STDEV = sd(physhlth)) %>%
+    mutate(SKEW = ifelse(MEAN > MEDIAN, "RIGHT", "LEFT"))
+
+pandoc.table(sum3, caption = "Fig. 3-3 - Summary Statistics for Joint Pain Grouped by Physical Activity Level", justify = "center")
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Excluding the respondents who had zero days of poor physical health, a similar association pattern appears as before, but, now, unique median values are present. The two categories of current smokers have higher mean and median values than for former smokers and those who never smoked. The large IQR values for many of the categories indicate there is a great spread of values considering both this version of the data and the data that includes zero values. This large spread of values means there is a lot of overlap between the densities of each category, which limits the strength of any association drawn from the data. 
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Both the associations and the large spread and overlap in the data can be visualized with multiple boxplots:
+
+```{r Plot 3-1, fig.width=8, fig.height = 6}
+no0_dat3 <- dat3 %>% filter(physhlth != 0)
+ggplot(no0_dat3, aes(x = X_age_g, y = physhlth, fill = X_smoker3)) + 
+    geom_boxplot() +
+    scale_fill_manual(values = heat_hcl(6, h = c(20,-80), l = c(75,40), c =c(40,80), power = 1)) +
+    labs(title = "Boxplot of Days Respondent's Physical Health Was Not Good \n by Smoking Habit and Age ", fill = "Respondent's Smoking Habit",x = "Age Group", y = "Number Of Days Physical Health Was Not Good") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;These boxplots display a version of the same information as the table above, except the mean and sd values are not plotted. The boxplots give a sense of the large IQR or spread in the data, especially for the older age groups indicating that the distribution of days with poor physical health ranges over almost all the possible options from 1-30 in these cases. The IQR also shows how some of these categories have large overlaps in their distribution, which reduces the strength of any association in the data as this means some of the distributions are not significantly distinct. In addition, the medians generally show the decreasing number of poor physical health days both as one is younger and does not smoke.
+
+
+
+<br>
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The final plot of the data shows the averages of each category:
+```{r Plot 3-2, fig.width=8, fig.height = 6}
+ggplot(sum3, aes(x = X_smoker3, y = MEAN, col = X_age_g, group = X_age_g)) + 
+    geom_line(lwd=2) +
+    scale_y_continuous(breaks = c(5:20)) +
+    scale_color_manual(values = heat_hcl(6, h = c(20,-80), l = c(75,40), c =c(40,80), power = 1)) +
+    labs(title = "Average Number Of Days Respondent's Physical Health Was Not Good \n by Smoking Habit and Age ", color = "Age",x = "Respondent's Smoking Habit", y = "Average Number Of Days Physical Health Was Not Good") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The boxplot analysis supports an association between increased smoking and an increase in the number of days where physical health was not good. In addition, this association is magnified when considering the respondent's age as greater age is related with a greater number of days with poor physical health. However, there is much overlap in the data and many members of each group report poor physical health days that are shared with many other individuals in other categories. This overlap weakens the association drawn between smoking habits and poor physical health days. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;However, one may accept this limitation and focus instead on the upper half of the distribution of reported days for each category. Since the mean is sensitive to outlying values, it also picks up on the differences in the upper end of the number of days reported for each category. One may phrase this association as, if a respondent reports a higher number of days were their physical health is not good and they are older there is an association with much higher numbers of poor physical health days if they smoke. This relationship is a version of if it rains it pours. One may expect that if they do smoke, yes, they may fall in that lower half of possible values for their group and not have many poor physical health days, but, if they fall in the upper half, they are much more likely to have more days of poor physical days if they smoke and are older when compared to other smoking habits and ages.
+
+<br>
+
+**Summary**
+
+<i>Initial Question:</i> Are a US adult's <u>smoking habits</u> and their <u>age group</u> associated with the <u>number of days they reported where their physical health was not good</u>?
+
+<i>Narrative from the Exploratory Analysis:</i> Yes, smoking and older age are associated with a greater number of days where physical health was not good. This association is relatively weak due to the great overlap in the data. However, especially in the upper half of the data for each category, smoking and old age is clearly associated with more days of poor physical health, and, thus, there is evidence for an association between high amounts of poor health days, smoking, and age. Thus, an older smoker who has a high number of days where physical health is not good is expected to have a much greater number of poor health days than a young individual who never smoked and has a high number of poor physical health days relative to their group.
+
+
+* * *
+
+### Submission by Connor Lenio. Email: cojamalo@gmail.com
+Completion Date: Mar 29, 2017
