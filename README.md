@@ -6,6 +6,8 @@ Completion Date: Mar 29, 2017
 
 ### Please visit https://cojamalo.github.io/DATA-DUKE-Intro-Stats-EDA-1/Duke01_project.html to properly view the project html file.
 
+### Also note that this project was completed prior to other courses in Statistical Inference. The project represents descriptive analysis only. I use language such as "associated with," but no inference has ben completed to determine the significance of the descriptive findings.
+
 ### Introduction to the Data
 From "Data Analysis Project Information":
 
